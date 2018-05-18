@@ -1,7 +1,13 @@
 
 
-function SimplexFase1(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxIter::Int32,epslon = 10.0^-9)
+function SimplexFase1(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxIter=1000,epslon = 10.0^-9)
     
+    println("")
+    println("##############################")
+    println("------- Simplex Fase 1 -------")
+    println("##############################")
+    println("")
+
     A = hcat(A,-1*ones(1,size(A)[1])')
     c = vcat(zeros(length(c)),-1)
 
@@ -51,7 +57,6 @@ function SimplexFase1(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxI
             vB
             vN = vN[vN .!= size(A)[2]]
             status = 1
-            # return (sort(vB), sort(vN), status)
             return (vB, vN, status)
         end
 
@@ -69,26 +74,18 @@ function SimplexFase1(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxI
     end
 end
 
-function Simplex(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxIter::Int32,epslon = 10.0^-9)
+function SimplexFase2(A::Array{Float64},b::Array{Float64},c::Array{Float64}, aux_sort = 1,maxIter=1000,epslon = 10.0^-9)
 
     m = size(A)[1]
     n = size(A)[2] - m
 
+    if aux_sort == 1
+        aux_sort = [i for i in 1:(n+m)]
+    end
+
     vB = [i for i in (n+1):(n+m)]
     vN = [i for i in 1:n]
 
-    iter    = 1
-
-    B = A[:,vB]
-    N = A[:,vN]
-
-    xB = B \ b
-
-    if any(xB .< 0)
-        vB,vN,flag = SimplexFase1(A,b,c,maxIter)
-    end
-
-    
     println("")
     println("##############################")
     println("------- Simplex Fase 2 -------")
@@ -111,19 +108,19 @@ function Simplex(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxIter::
         x      = zeros(n+m)
         x[vB]  = xB
 
-        println("x     = ", x)
-        println("Base  = ", vB)
-        println("nBase = ", vN)
+        println("x     = ", [x[i] for i in aux_sort])
+        println("Base  = ", aux_sort[vB])
+        println("nBase = ", aux_sort[vN])
         println("")
         
         if all(cR .<= epslon)
             z      = c'*x;
             status = 1;
             println("Solucao obtida:")
-            println("x      = ", x)
+            println("x      = ", [x[i] for i in aux_sort])
             println("z      = ", z)
             println("status = ", status)
-            return (x,z,status);
+            return ([x[i] for i in aux_sort],z,status);
         end
         
         if all(dB[:,j] .>= epslon)
@@ -133,10 +130,10 @@ function Simplex(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxIter::
             z      = Inf
             status = -1
             println("Problema ilimitado!")
-            println("d      = ", d)
+            println("d      = ", [d[i] for i in aux_sort])
             println("z      = ", z)
             println("status = ", status)
-            return (d,z,status);
+            return ([d[i] for i in aux_sort],z,status);
         end
         
         r  = xB./(dB[:,j])
@@ -148,30 +145,92 @@ function Simplex(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxIter::
     end
 end
 
-#--- Problema 1
+function Simplex(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxIter=1000,epslon = 10.0^-9)
+    
+    m = size(A)[1]
+    n = size(A)[2] - m
 
-A = float([2 1 1 0 ; 1 2 0 1]);
-b = float([4;4]);
-c = float([4;3;0;0]);
-maxIter = Int32(1000);
+    vB = [i for i in (n+1):(n+m)]
+    vN = [i for i in 1:n]
 
-x,z,status = Simplex(A,b,c,maxIter);
+    B = A[:,vB]
+    N = A[:,vN]
 
-#---- Problema 2
+    xB = B \ b
 
-A = float([0.5 -1 1 0; -4 1 0 1])
-b = float([0.5 ; 1])
-c = float([1 ; 1; 0; 0])
-maxIter = Int32(1000);
+    if any(xB .< 0)
+        vB,vN,flag = SimplexFase1(A,b,c)
 
-x,z,status = Simplex(A,b,c,maxIter);
+        if flag == -2
+            println("Infeasible problem")
+            return -2
+        else
+            A = A[:,vcat(vB,vN)]
+            c = c[vcat(vB,vN)]
+            aux_X = vcat(vB,vN)
+            x,z,status = SimplexFase2(A,b,c,vcat(vB,vN))
+        end
+    else
+        x,z,status = SimplexFase2(A,b,c)
+    end
 
+    
+    
 
-#---- Problema 3
+end
 
-A = float([2 1 1 0 0; 1 2 0 1 0; -1 -1 0 0 1])
-b = float([4, 4, -1])
-c = float([4 3 0 0 0])
-maxIter = Int32(1000);
+function callProblems()
 
-x,z,status = Simplex(A,b,c,maxIter);
+    #--- Problema 1
+
+    println("")
+    println("###################################################################")
+    println("--------------------------- Problema  1 ---------------------------")
+    println("###################################################################")
+    println("")
+
+    A = float([2 1 1 0 ; 1 2 0 1]);
+    b = float([4;4]);
+    c = float([4;3;0;0]);
+    maxIter = Int32(1000);
+
+    x,z,status = Simplex(A,b,c);
+
+    println("")
+    println("")
+
+    #---- Problema 2
+    
+    println("")
+    println("###################################################################")
+    println("--------------------------- Problema  2 ---------------------------")
+    println("###################################################################")
+    println("")
+
+    A = float([0.5 -1 1 0; -4 1 0 1])
+    b = float([0.5 ; 1])
+    c = float([1 ; 1; 0; 0])
+
+    x,z,status = Simplex(A,b,c);
+
+    
+
+    println("")
+    println("")
+
+    #---- Problema 3
+    
+    println("")
+    println("###################################################################")
+    println("--------------------------- Problema  3 ---------------------------")
+    println("###################################################################")
+    println("")
+
+    A = float([2 1 1 0 0; 1 2 0 1 0; -1 -1 0 0 1])
+    b = float([4, 4, -1])
+    c = float([4 3 0 0 0])
+
+    x,z,status = Simplex(A,b,c);
+end
+
+callProblems()
