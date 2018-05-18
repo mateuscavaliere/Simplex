@@ -1,4 +1,8 @@
+######################################################################
+#------------------ Implementacao do metodo Simplex ------------------
+######################################################################
 
+#--- Autor: Mateus Cavaliere (Maio/2018)
 
 function SimplexFase1(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxIter=1000,epslon = 10.0^-9)
     
