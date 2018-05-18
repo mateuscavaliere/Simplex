@@ -8,42 +8,45 @@ function SimplexFase1(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxI
     println("##############################")
     println("")
 
-    A = hcat(A,-1*ones(1,size(A)[1])')
+    #--- Adicionando variavel de folga para incluir origem na regiao viavel do problema
+    A = hcat(A,-1*ones(1,size(A)[1])')   
     c = vcat(zeros(length(c)),-1)
 
+    #--- Determinando o numero de variaveis basicas e nao basicas
     m = size(A)[1] + 1
     n = size(A)[2] - m
 
+    #--- Definindo vetores de variaveis basicas e nao basicas
     vN = vcat([i for i in 1:n],size(A)[2])
     vB  = [i for i in (n+1):(n+m-1)]
 
-    iter    = 1
+    #--- Devemos inserir a variavel artificial (w) na base
+    
+    B = A[:,vB]     # Parte da matriz A associada ao vetor de variaveis basicas
+    N = A[:,vN]     # Parte da matriz A associada ao vetor de variaveis nao basicas
+    xB = B \ b      # Valor das variaveis basicas
 
-    B = A[:,vB]
-    N = A[:,vN]
-    xB = B \ b
+    j          = length(vN)     # indice da variavel artificial (w) inserida no problema
+    k          = indmin(xB)     # indice da variavel basica com o menor valor
+    varR_Base  = vB[k]          # coluna associada a variavel que deve ser retirada da base
+    varR_nBase = vN[j]          # coluna associada a variavel que deve ser retirada da nao base
+    vB[k]      = varR_nBase     # nova Base
+    vN[j]      = varR_Base      # nova nBase
 
-    if iter == 1    # devemos inserir a variavel artificial (w) na base
-        j          = length(vN)    # indice da variavel artificial (w) inserida no problema
-        k          = indmin(xB)     # indice da variavel basica com o menor valor
-        varR_Base  = vB[k]   # coluna associada a variavel que deve ser retirada da base
-        varR_nBase = vN[j] # coluna associada a variavel que deve ser retirada da nao base
-        vB[k]      = varR_nBase  # nova Base
-        vN[j]      = varR_Base  # nova nBase
-    end
+    #--- Realizacao do processo iterativo para encontrar o minimo de w
 
-    for i = 2:maxIter
+    for i = 1:maxIter
 
-        println("Iteracao # ",i)
+        println("Iteracao #",i)
 
-        B = A[:,vB]
-        N = A[:,vN]
-        xB = B \ b
+        B = A[:,vB]             # Parte da matriz A associada ao vetor de variaveis basicas
+        N = A[:,vN]             # Parte da matriz A associada ao vetor de variaveis nao basicas
+        xB = B \ b              # Valor das variaveis basicas
         dB = -B \ N
-        cB = c[vB]
-        cN = c[vN]
-        cR = (cN' + cB'*dB)'
-        j  = indmax(cR)
+        cB = c[vB]              # Parte do vetor c associada ao vetor de variaveis basicas
+        cN = c[vN]              # Parte do vetor c associada ao vetor de variaveis nao basicas
+        cR = (cN' + cB'*dB)'    # Custo reduzido da funcao objetivo
+        j  = indmax(cR)         # Indice da variavel que deve entrar na base
 
         x      = zeros(n+m)
         x[vB]  = xB
@@ -53,6 +56,7 @@ function SimplexFase1(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxI
         println("nBase = ", vN)
         println("")
 
+        #--- Check do criterio de parada para valor otimo
         if all(cR .<= epslon)
             vB
             vN = vN[vN .!= size(A)[2]]
@@ -60,13 +64,14 @@ function SimplexFase1(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxI
             return (vB, vN, status)
         end
 
+        #--- Check do criterio de parada para valor problema irrestrito
         if all(dB[:,j] .>= epslon)
             status = -2
             return (status);
         end
 
         r  = xB./(dB[:,j])
-        k  = indmax(r[r .< 0])
+        k  = indmax(r[r .< 0])  # Indice da variavel que deve sair da base
 
         auxB  = vB[k]
         vB[k] = vN[j]
@@ -76,6 +81,7 @@ end
 
 function SimplexFase2(A::Array{Float64},b::Array{Float64},c::Array{Float64}, aux_sort = 1,maxIter=1000,epslon = 10.0^-9)
 
+    #--- Determinando o numero de variaveis basicas e nao basicas
     m = size(A)[1]
     n = size(A)[2] - m
 
@@ -92,18 +98,19 @@ function SimplexFase2(A::Array{Float64},b::Array{Float64},c::Array{Float64}, aux
     println("##############################")
     println("")
 
+    #--- Realizacao do processo iterativo 
     for i = 1:maxIter
 
         println("Iteracao # ",i)
 
-        B = A[:,vB]
-        N = A[:,vN]
-        xB = B \ b
+        B = A[:,vB]             # Parte da matriz A associada ao vetor de variaveis basicas
+        N = A[:,vN]             # Parte da matriz A associada ao vetor de variaveis nao basicas
+        xB = B \ b              # Valor das variaveis basicas
         dB = -B \ N
-        cB = c[vB]
-        cN = c[vN]
-        cR = (cN' + cB'*dB)'
-        j  = indmax(cR)
+        cB = c[vB]              # Parte do vetor c associada ao vetor de variaveis basicas
+        cN = c[vN]              # Parte do vetor c associada ao vetor de variaveis nao basicas
+        cR = (cN' + cB'*dB)'    # Custo reduzido da funcao objetivo
+        j  = indmax(cR)         # Indice da variavel que deve entrar na base
 
         x      = zeros(n+m)
         x[vB]  = xB
@@ -113,6 +120,8 @@ function SimplexFase2(A::Array{Float64},b::Array{Float64},c::Array{Float64}, aux
         println("nBase = ", aux_sort[vN])
         println("")
         
+        #--- Check do criterio de parada para valor otimo
+
         if all(cR .<= epslon)
             z      = c'*x;
             status = 1;
@@ -123,6 +132,7 @@ function SimplexFase2(A::Array{Float64},b::Array{Float64},c::Array{Float64}, aux
             return ([x[i] for i in aux_sort],z,status);
         end
         
+        #--- Check do criterio de parada para valor problema irrestrito
         if all(dB[:,j] .>= epslon)
             d      = zeros(n+m)
             d[vN]  = 1
@@ -173,10 +183,6 @@ function Simplex(A::Array{Float64},b::Array{Float64},c::Array{Float64},maxIter=1
     else
         x,z,status = SimplexFase2(A,b,c)
     end
-
-    
-    
-
 end
 
 function callProblems()
@@ -231,6 +237,8 @@ function callProblems()
     c = float([4 3 0 0 0])
 
     x,z,status = Simplex(A,b,c);
+
+    return
 end
 
 callProblems()
